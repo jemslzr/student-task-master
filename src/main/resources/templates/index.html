@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Task Master</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <style>
+        body { background-color: #eef2f5; font-family: 'Segoe UI', sans-serif; color: #2c3e50; }
+        .main-container { max-width: 900px; margin: 40px auto; }
+
+        /* --- HEADER CARD --- */
+        .header-card {
+            background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%);
+            border-radius: 20px; padding: 35px; border: none;
+            box-shadow: 0 10px 30px rgba(132, 250, 176, 0.4);
+            color: #2c3e50; margin-bottom: 25px; position: relative; overflow: hidden;
+        }
+        /* Shine Effect on Header */
+        .header-card::before {
+            content: ''; position: absolute; top: 0; left: -50%; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.2); transform: skewX(-20deg);
+            animation: shine 6s infinite; pointer-events: none;
+        }
+        @keyframes shine { 0% { left: -50%; } 20% { left: 150%; } 100% { left: 150%; } }
+
+        .xp-container { background: rgba(255, 255, 255, 0.5); border-radius: 15px; height: 14px; margin-top: 20px; overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1); }
+        .xp-fill { background: #2c3e50; height: 100%; transition: width 0.5s ease-in-out; }
+        .level-badge { background: white; color: #2c3e50; padding: 6px 18px; border-radius: 50px; font-weight: 800; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+
+        /* --- AI CARD --- */
+        .ai-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border-radius: 15px; padding: 20px;
+            margin-bottom: 30px; box-shadow: 0 8px 20px rgba(118, 75, 162, 0.3);
+            animation: float 4s ease-in-out infinite; border: 1px solid rgba(255,255,255,0.2);
+        }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-6px); } 100% { transform: translateY(0px); } }
+        .ai-badge { background: #ffd700; color: #000; font-weight: bold; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* --- TABS --- */
+        .filter-nav { justify-content: center; margin-bottom: 25px; gap: 12px; display: flex; }
+        .filter-btn { background: white; border: none; padding: 10px 24px; border-radius: 50px; color: #7f8c8d; font-weight: 700; text-decoration: none; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .filter-btn:hover { background: #fff; color: #2c3e50; transform: translateY(-2px); }
+        .filter-btn.active { background: #2c3e50; color: white; box-shadow: 0 5px 15px rgba(44, 62, 80, 0.4); transform: translateY(-2px); }
+
+        /* --- ADD FORM & PULSE BUTTON --- */
+        .add-task-area { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.08); display: flex; gap: 10px; margin-bottom: 30px; border: 1px solid #f1f1f1; }
+        .custom-input { border: 2px solid #f0f2f5; border-radius: 10px; padding: 12px; font-weight: 500; }
+        .custom-input:focus { border-color: #84fab0; outline: none; box-shadow: 0 0 0 3px rgba(132, 250, 176, 0.2); }
+
+        .btn-add {
+            background-color: #2c3e50; color: white; border-radius: 10px; padding: 0 30px; font-weight: 800; border: none; letter-spacing: 1px;
+            animation: pulse-btn 2s infinite;
+        }
+        @keyframes pulse-btn {
+            0% { box-shadow: 0 0 0 0 rgba(44, 62, 80, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(44, 62, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(44, 62, 80, 0); }
+        }
+        .btn-add:hover { background-color: #1a252f; animation: none; transform: scale(1.05); }
+
+        /* --- LIST STYLES --- */
+        .section-title { font-size: 0.85rem; font-weight: 800; color: #95a5a6; letter-spacing: 1.5px; margin-bottom: 15px; margin-left: 5px; text-transform: uppercase; }
+
+        .task-row { background: white; margin-bottom: 15px; border-radius: 12px; padding: 18px; border-left: 6px solid #f1c40f; transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .task-row:hover { transform: translateY(-4px); border-left: 6px solid #84fab0; box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+
+        .archive-row { background: #edf2f4; margin-bottom: 10px; border-radius: 12px; padding: 15px; opacity: 0.7; border-left: 6px solid #2ecc71; filter: grayscale(20%); transition: 0.2s; }
+        .archive-row:hover { filter: grayscale(0%); opacity: 1; }
+        .completed-text { text-decoration: line-through; color: #95a5a6; }
+
+        .date-badge { font-size: 0.75rem; background: #eef2f5; color: #7f8c8d; padding: 5px 12px; border-radius: 8px; font-weight: 700; margin-left: 10px; display: inline-block; }
+        .time-info { display: block; font-size: 0.7rem; color: #bdc3c7; margin-top: 4px; font-weight: 600; }
+
+        /* --- CHECK & DELETE BUTTONS --- */
+        .btn-check-custom {
+            background: white; border: 2px solid #dfe6e9; width: 38px; height: 38px;
+            border-radius: 50%; cursor: pointer; color: #dfe6e9;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: bold; transition: 0.2s; margin-right: 18px;
+        }
+        .btn-check-custom:hover { border-color: #2ecc71; color: #2ecc71; transform: scale(1.1); box-shadow: 0 3px 10px rgba(46, 204, 113, 0.2); }
+        .btn-check-custom.checked { background: #2ecc71; border-color: #2ecc71; color: white; box-shadow: 0 3px 10px rgba(46, 204, 113, 0.3); }
+
+        .action-btn { width: 38px; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; border: none; margin-left: 8px; cursor: pointer; transition: 0.2s; font-size: 14px; }
+        .btn-edit { background: #e3f2fd; color: #3498db; }
+        .btn-edit:hover { background: #3498db; color: white; transform: rotate(15deg); }
+        .btn-delete { background: #ffebee; color: #e74c3c; }
+        .btn-delete:hover { background: #e74c3c; color: white; transform: rotate(-15deg); }
+
+        .edit-form { display: none; width: 100%; gap: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container main-container">
+
+    <div id="dashboard-fragment" th:fragment="dashboard-fragment" hx-swap="outerHTML" hx-select="#dashboard-fragment">
+
+        <div class="header-card text-center">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="level-badge">LVL <span th:text="${level}">1</span> STUDENT</span>
+                <span class="fw-bold text-white" style="text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <i class="fas fa-fire-alt me-1 text-warning"></i> Streak: <span th:text="${completedCount}">0</span>
+                </span>
+            </div>
+
+            <h1 class="fw-black display-5 mb-0" style="font-weight: 800; letter-spacing: -1px;">Student Task Master</h1>
+
+            <p class="mt-2 mb-3 fw-bold text-white fs-5" style="text-shadow: 0 2px 5px rgba(0,0,0,0.15);">
+                Start Crushing Tasks Now!
+            </p>
+
+            <div class="xp-container">
+                <div class="xp-fill" th:style="'width: ' + ${xp} + '%'"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-1 text-white opacity-75" style="font-size: 0.75rem; font-weight: bold;">
+                <span>0%</span>
+                <span>LEVEL PROGRESS</span>
+                <span>100%</span>
+            </div>
+        </div>
+
+        <div th:if="${aiSuggestion != null}" class="ai-card">
+            <div class="d-flex align-items-center">
+                <div class="me-3 display-4"><i class="fas fa-brain"></i></div>
+                <div>
+                    <span class="ai-badge mb-2 d-inline-block"><i class="fas fa-bolt me-1"></i>SMART HEURISTICS SUGGESTION</span>
+                    <h5 class="fw-bold m-0" th:text="${aiSuggestion.title}">Task Name</h5>
+                    <small style="opacity: 0.9;">
+                        Due: <span th:text="${aiSuggestion.getFormattedDueDate()}">Date</span>
+                        &bull; Urgency Score: <span th:text="${aiSuggestion.getPriorityScore()}">100</span>
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="filter-nav">
+            <button class="filter-btn" th:classappend="${activeFilter == 'all' ? 'active' : ''}" hx-get="/filter/all" hx-target="#dashboard-fragment">All</button>
+            <button class="filter-btn" th:classappend="${activeFilter == 'today' ? 'active' : ''}" hx-get="/filter/today" hx-target="#dashboard-fragment">Today</button>
+            <button class="filter-btn" th:classappend="${activeFilter == 'week' ? 'active' : ''}" hx-get="/filter/week" hx-target="#dashboard-fragment">Week</button>
+            <button class="filter-btn" th:classappend="${activeFilter == 'month' ? 'active' : ''}" hx-get="/filter/month" hx-target="#dashboard-fragment">Month</button>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-md-11">
+                <form hx-post="/add" hx-target="#dashboard-fragment" class="add-task-area">
+                    <input type="text" name="title" class="form-control custom-input border-0" style="flex: 2;" placeholder="What's the next mission?" required autocomplete="off">
+                    <input type="datetime-local" name="dueDate" class="form-control custom-input border-0" style="flex: 1;" required>
+                    <button type="submit" class="btn-add">ADD</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="px-2">
+            <div th:if="${!#lists.isEmpty(todos)}">
+                <div class="section-title"><i class="fas fa-crosshairs me-2"></i>Active Missions</div>
+            </div>
+
+            <div th:if="${#lists.isEmpty(todos)}" class="text-center py-5 text-muted">
+                <i class="fas fa-rocket fa-4x mb-3 text-secondary opacity-25"></i>
+                <h3 class="fw-bold">All Systems Clear!</h3>
+                <p>No active missions. Add a task to launch.</p>
+            </div>
+
+            <div th:each="todo : ${todos}" th:if="${!todo.completed}" class="d-flex align-items-center justify-content-between task-row">
+                <div class="d-flex align-items-center flex-grow-1">
+                    <button class="btn-check-custom"
+                            th:hx-post="@{/toggle/{id}(id=${todo.id}, filter=${activeFilter})}"
+                            hx-target="#dashboard-fragment" title="Crush this task!">
+                        &#10003;
+                    </button>
+
+                    <div th:id="'view-' + ${todo.id}" style="width: 100%;">
+                        <div class="d-flex align-items-center">
+                            <span class="fs-5 fw-bold text-dark" th:text="${todo.title}">Task</span>
+                            <span class="date-badge"><i class="far fa-calendar me-1"></i><span th:text="${todo.getFormattedDueDate()}">Date</span></span>
+                        </div>
+                        <span class="time-info">
+                            <i class="fas fa-history me-1"></i>Added: <span th:text="${todo.getFormattedCreatedTime()}">Time</span>
+                        </span>
+                    </div>
+
+                    <form th:action="@{/update/{id}(id=${todo.id})}" hx-post="@{/update/{id}(id=${todo.id})}" hx-target="#dashboard-fragment" class="edit-form align-items-center" th:id="'edit-' + ${todo.id}">
+                        <input type="hidden" name="filter" th:value="${activeFilter}">
+                        <input type="text" name="title" class="form-control custom-input py-1" th:value="${todo.title}" required>
+                        <input type="datetime-local" name="dueDate" class="form-control custom-input py-1" style="max-width: 200px;" th:value="${todo.dueDate}" required>
+                        <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-save"></i></button>
+                        <button type="button" class="btn btn-sm btn-secondary" th:onclick="'toggleEdit(' + ${todo.id} + ')'"><i class="fas fa-times"></i></button>
+                    </form>
+                </div>
+
+                <div class="d-flex align-items-center">
+                    <button class="action-btn btn-edit" th:onclick="'toggleEdit(' + ${todo.id} + ')'" title="Edit details"><i class="fas fa-pencil-alt"></i></button>
+                    <button class="action-btn btn-delete" th:hx-post="@{/delete/{id}(id=${todo.id}, filter=${activeFilter})}" hx-target="#dashboard-fragment" title="Abort mission">&#10005;</button>
+                </div>
+            </div>
+
+            <div th:if="${completedCount > 0}">
+                <div class="section-title mt-5"><i class="fas fa-trophy me-2 text-warning"></i>Mission Archive</div>
+            </div>
+
+            <div th:each="todo : ${todos}" th:if="${todo.completed}" class="d-flex align-items-center justify-content-between archive-row">
+                <div class="d-flex align-items-center flex-grow-1">
+                    <button class="btn-check-custom checked"
+                            th:hx-post="@{/toggle/{id}(id=${todo.id}, filter=${activeFilter})}"
+                            hx-target="#dashboard-fragment" title="Undo complete">
+                        &#10003;
+                    </button>
+                    <div>
+                        <span class="fs-5 fw-bold completed-text" th:text="${todo.title}">Task</span>
+                        <span class="date-badge"><span th:text="${todo.getFormattedDueDate()}">Date</span></span>
+                    </div>
+                </div>
+                <div>
+                    <button class="action-btn btn-delete" th:hx-post="@{/delete/{id}(id=${todo.id}, filter=${activeFilter})}" hx-target="#dashboard-fragment" hx-confirm="Permanently delete?">&#10005;</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    document.body.addEventListener('htmx:afterOnLoad', function(evt) {
+        if(evt.detail.elt.tagName === 'FORM' && evt.detail.requestConfig.path === '/add') {
+            evt.detail.elt.reset();
+        }
+    });
+
+    function toggleEdit(id) {
+        var view = document.getElementById('view-' + id);
+        var edit = document.getElementById('edit-' + id);
+        if (view.style.display === 'none') {
+            view.style.display = 'block';
+            edit.style.display = 'none';
+        } else {
+            view.style.display = 'none';
+            edit.style.display = 'flex';
+        }
+    }
+</script>
+
+</body>
+</html>
