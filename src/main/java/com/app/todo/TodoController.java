@@ -24,18 +24,61 @@ public class TodoController {
     }
 
     @PostMapping("/add")
-    public String addTodo(@RequestParam String title, @RequestParam LocalDateTime dueDate, Model model) {
-        Todo todo = new Todo(null, title, false, dueDate);
-        repository.saveAndFlush(todo);
+    public String addTodo(@RequestParam String title, @RequestParam String dueDate, Model model) {
+        System.out.println("ADDING NEW TASK: " + title);
+        saveTask(null, title, dueDate);
         updateModel(model, "all");
         return "index";
+    }
+
+    // --- EDIT ENDPOINT ---
+    @PostMapping("/update/{id}")
+    public String updateTodo(@PathVariable Long id,
+                             @RequestParam String title,
+                             @RequestParam String dueDate,
+                             @RequestParam(defaultValue = "all") String filter,
+                             Model model) {
+
+        System.out.println(">>> EDITING TASK ID: " + id);
+        System.out.println(">>> New Title: " + title);
+        System.out.println(">>> New Date: " + dueDate);
+
+        saveTask(id, title, dueDate);
+
+        updateModel(model, filter);
+        return "index"; // Reloads the page with new data
+    }
+
+    private void saveTask(Long id, String title, String dateStr) {
+        try {
+            if (dateStr != null && dateStr.length() == 16) dateStr += ":00";
+
+            LocalDateTime parsedDate = (dateStr == null || dateStr.isEmpty())
+                    ? LocalDateTime.now()
+                    : LocalDateTime.parse(dateStr);
+
+            Todo todo;
+            if (id == null) {
+                todo = new Todo(null, title, false, parsedDate);
+            } else {
+                todo = repository.findById(id).orElseThrow();
+                todo.setTitle(title);
+                todo.setDueDate(parsedDate);
+                todo.setUpdatedAt(LocalDateTime.now());
+            }
+            repository.saveAndFlush(todo);
+            System.out.println(">>> SUCCESS: SAVED TO DATABASE");
+
+        } catch (Exception e) {
+            System.out.println("!!! ERROR SAVING: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     @PostMapping("/toggle/{id}")
     public String toggleTodo(@PathVariable Long id, @RequestParam(defaultValue = "all") String filter, Model model) {
         Todo todo = repository.findById(id).orElseThrow();
         todo.setCompleted(!todo.isCompleted());
-        todo.setUpdatedAt(LocalDateTime.now());
         repository.saveAndFlush(todo);
         updateModel(model, filter);
         return "index";
@@ -48,17 +91,6 @@ public class TodoController {
         return "index";
     }
 
-    @PostMapping("/update/{id}")
-    public String updateTodo(@PathVariable Long id, @RequestParam String title, @RequestParam LocalDateTime dueDate, @RequestParam(defaultValue = "all") String filter, Model model) {
-        Todo todo = repository.findById(id).orElseThrow();
-        todo.setTitle(title);
-        todo.setDueDate(dueDate);
-        todo.setUpdatedAt(LocalDateTime.now());
-        repository.saveAndFlush(todo);
-        updateModel(model, filter);
-        return "index";
-    }
-
     @GetMapping("/filter/{type}")
     public String filterTodos(@PathVariable String type, Model model) {
         updateModel(model, type);
@@ -67,30 +99,25 @@ public class TodoController {
 
     private void updateModel(Model model, String filterType) {
         List<Todo> allTodos = repository.findAll();
-        LocalDate today = LocalDate.now();
+        // Remove corrupted data to prevent crash
+        List<Todo> validTodos = allTodos.stream().filter(t -> t.getDueDate() != null).collect(Collectors.toList());
 
-        // 1. GAMIFICATION
-        long totalTasks = allTodos.size();
-        long completedTasks = allTodos.stream().filter(Todo::isCompleted).count();
-        int xpPercentage = totalTasks == 0 ? 0 : (int) ((completedTasks * 100) / totalTasks);
+        long completedTasks = validTodos.stream().filter(Todo::isCompleted).count();
+        int xpPercentage = validTodos.isEmpty() ? 0 : (int) ((completedTasks * 100) / validTodos.size());
         int level = (int) (completedTasks / 5) + 1;
 
-        // 2. AI SUGGESTION
-        Todo aiSuggestion = allTodos.stream()
+        Todo aiSuggestion = validTodos.stream()
                 .filter(t -> !t.isCompleted())
                 .max(Comparator.comparingInt(Todo::getPriorityScore))
                 .orElse(null);
 
-        // 3. FILTERING
-        List<Todo> filteredList = allTodos.stream()
+        List<Todo> filteredList = validTodos.stream()
                 .filter(t -> {
-                    LocalDate taskDate = t.getDueDate().toLocalDate();
-
-                    if (filterType.equals("today")) return taskDate.isEqual(today);
-                    if (filterType.equals("week")) return taskDate.isAfter(today.minusDays(1)) && taskDate.isBefore(today.plusDays(7));
-                    // NEW: Month Filter
-                    if (filterType.equals("month")) return taskDate.getMonth() == today.getMonth() && taskDate.getYear() == today.getYear();
-
+                    LocalDate d = t.getDueDate().toLocalDate();
+                    LocalDate today = LocalDate.now();
+                    if (filterType.equals("today")) return d.isEqual(today);
+                    if (filterType.equals("week")) return d.isAfter(today.minusDays(1)) && d.isBefore(today.plusDays(7));
+                    if (filterType.equals("month")) return d.getMonth() == today.getMonth();
                     return true;
                 })
                 .sorted(Comparator.comparing(Todo::isCompleted).thenComparing(Todo::getDueDate))

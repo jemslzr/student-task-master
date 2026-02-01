@@ -17,7 +17,6 @@ public class Todo {
 	private String title;
 	private boolean completed;
 	private LocalDateTime dueDate;
-
 	private LocalDateTime createdAt;
 	private LocalDateTime updatedAt;
 
@@ -32,38 +31,43 @@ public class Todo {
 		this.updatedAt = LocalDateTime.now();
 	}
 
-	// --- SMART LOGIC ---
+	// --- SAFETY LOGIC (Prevents Crashes) ---
 	public int getPriorityScore() {
 		if (completed) return -1;
-
-		int score = 0;
-		LocalDate dueDay = dueDate.toLocalDate();
-		LocalDate today = LocalDate.now();
-
-		if (dueDay.isEqual(today)) score += 100;
-		else if (dueDay.isBefore(today)) score += 150;
-		else if (dueDay.isEqual(today.plusDays(1))) score += 50;
-		else if (dueDay.isBefore(today.plusDays(3))) score += 20;
-
-		if (createdAt.isBefore(LocalDateTime.now().minusDays(3))) {
-			score += 30;
-		}
-
-		return score;
+		if (dueDate == null) return 0;
+		try {
+			int score = 0;
+			LocalDate dueDay = dueDate.toLocalDate();
+			LocalDate today = LocalDate.now();
+			if (dueDay.isEqual(today)) score += 100;
+			else if (dueDay.isBefore(today)) score += 150;
+			else if (dueDay.isEqual(today.plusDays(1))) score += 50;
+			return score;
+		} catch (Exception e) { return 0; }
 	}
 
-	public String getFormattedDueDate() {
-		if (dueDate == null) return "";
+	public String getNiceDate() {
+		if (dueDate == null) return "No Date";
 		return dueDate.format(DateTimeFormatter.ofPattern("MMM d, h:mm a"));
 	}
 
-	public String getFormattedCreatedTime() {
+	public String getFormattedDueDate() {
+		return getNiceDate();
+	}
+
+	// For Edit Form
+	public String getHtmlValue() {
+		if (dueDate == null) return "";
+		return dueDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+	}
+
+	// For Creation Time
+	public String getNiceCreated() {
+		if (createdAt == null) return "";
 		return createdAt.format(DateTimeFormatter.ofPattern("h:mm a"));
 	}
 
-	public String getFormattedUpdatedTime() {
-		return updatedAt.format(DateTimeFormatter.ofPattern("h:mm a"));
-	}
+	public String getFormattedCreatedTime() { return getNiceCreated(); } // Alias
 
 	// --- GETTERS & SETTERS ---
 	public Long getId() { return id; }

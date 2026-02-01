@@ -18,7 +18,6 @@
             box-shadow: 0 10px 30px rgba(132, 250, 176, 0.4);
             color: #2c3e50; margin-bottom: 25px; position: relative; overflow: hidden;
         }
-        /* Shine Effect on Header */
         .header-card::before {
             content: ''; position: absolute; top: 0; left: -50%; width: 100%; height: 100%;
             background: rgba(255,255,255,0.2); transform: skewX(-20deg);
@@ -67,6 +66,9 @@
 
         .task-row { background: white; margin-bottom: 15px; border-radius: 12px; padding: 18px; border-left: 6px solid #f1c40f; transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .task-row:hover { transform: translateY(-4px); border-left: 6px solid #84fab0; box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+
+        /* New: Editing style */
+        .task-row.editing { border-left: 6px solid #3498db; transform: none; box-shadow: none; }
 
         .archive-row { background: #edf2f4; margin-bottom: 10px; border-radius: 12px; padding: 15px; opacity: 0.7; border-left: 6px solid #2ecc71; filter: grayscale(20%); transition: 0.2s; }
         .archive-row:hover { filter: grayscale(0%); opacity: 1; }
@@ -131,7 +133,7 @@
                     <span class="ai-badge mb-2 d-inline-block"><i class="fas fa-bolt me-1"></i>SMART HEURISTICS SUGGESTION</span>
                     <h5 class="fw-bold m-0" th:text="${aiSuggestion.title}">Task Name</h5>
                     <small style="opacity: 0.9;">
-                        Due: <span th:text="${aiSuggestion.getFormattedDueDate()}">Date</span>
+                        Due: <span th:text="${aiSuggestion.getNiceDate()}">Date</span>
                         &bull; Urgency Score: <span th:text="${aiSuggestion.getPriorityScore()}">100</span>
                     </small>
                 </div>
@@ -177,17 +179,27 @@
                     <div th:id="'view-' + ${todo.id}" style="width: 100%;">
                         <div class="d-flex align-items-center">
                             <span class="fs-5 fw-bold text-dark" th:text="${todo.title}">Task</span>
-                            <span class="date-badge"><i class="far fa-calendar me-1"></i><span th:text="${todo.getFormattedDueDate()}">Date</span></span>
+                            <span class="date-badge"><i class="far fa-calendar me-1"></i><span th:text="${todo.getNiceDate()}">Date</span></span>
                         </div>
                         <span class="time-info">
-                            <i class="fas fa-history me-1"></i>Added: <span th:text="${todo.getFormattedCreatedTime()}">Time</span>
+                            <i class="fas fa-history me-1"></i>Added: <span th:text="${todo.getNiceCreated()}">Time</span>
                         </span>
                     </div>
 
-                    <form th:action="@{/update/{id}(id=${todo.id})}" hx-post="@{/update/{id}(id=${todo.id})}" hx-target="#dashboard-fragment" class="edit-form align-items-center" th:id="'edit-' + ${todo.id}">
+                    <form th:action="@{/update/{id}(id=${todo.id})}"
+                          method="post"
+                          class="edit-form align-items-center"
+                          th:id="'edit-' + ${todo.id}">
+
                         <input type="hidden" name="filter" th:value="${activeFilter}">
                         <input type="text" name="title" class="form-control custom-input py-1" th:value="${todo.title}" required>
-                        <input type="datetime-local" name="dueDate" class="form-control custom-input py-1" style="max-width: 200px;" th:value="${todo.dueDate}" required>
+
+                        <input type="datetime-local" name="dueDate"
+                               class="form-control custom-input py-1"
+                               style="max-width: 200px;"
+                               th:value="${todo.getHtmlValue()}"
+                               required>
+
                         <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-save"></i></button>
                         <button type="button" class="btn btn-sm btn-secondary" th:onclick="'toggleEdit(' + ${todo.id} + ')'"><i class="fas fa-times"></i></button>
                     </form>
@@ -212,7 +224,7 @@
                     </button>
                     <div>
                         <span class="fs-5 fw-bold completed-text" th:text="${todo.title}">Task</span>
-                        <span class="date-badge"><span th:text="${todo.getFormattedDueDate()}">Date</span></span>
+                        <span class="date-badge"><span th:text="${todo.getNiceDate()}">Date</span></span>
                     </div>
                 </div>
                 <div>
@@ -234,12 +246,16 @@
     function toggleEdit(id) {
         var view = document.getElementById('view-' + id);
         var edit = document.getElementById('edit-' + id);
+        var row = view.closest('.task-row'); // Get parent row
+
         if (view.style.display === 'none') {
             view.style.display = 'block';
             edit.style.display = 'none';
+            if (row) row.classList.remove('editing');
         } else {
             view.style.display = 'none';
             edit.style.display = 'flex';
+            if (row) row.classList.add('editing');
         }
     }
 </script>
